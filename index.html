@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]>      <html class="no-js"> <!--<![endif]-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>PGLite Todo Demo</title>
+    <meta
+      name="description"
+      content="This is a minimal example of PGlite, a WASM build of Postgres that can
+        run right in your browser"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <!--[if lt IE 7]>
+      <p class="browsehappy">
+        You are using an <strong>outdated</strong> browser. Please
+        <a href="#">upgrade your browser</a> to improve your experience.
+      </p>
+    <![endif]-->
+    <!--
+      *****************************************************************************************************
+      *****************************************************************************************************
+                                          CHECK OUT THE SOURCE ON GITHUB: 
+                                    https://github.com/MJDeligan/pglite-todo-demo
+
+      *****************************************************************************************************
+      *****************************************************************************************************
+    -->
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        padding-top: 64px;
+      }
+
+      main {
+        text-align: center;
+      }
+
+      .description {
+        display: block;
+        color: #666;
+        margin-bottom: 16px;
+      }
+
+      #todo-list {
+        padding: 32px;
+      }
+
+      .todo-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid #666;
+        border-radius: 5px;
+        padding: 8px;
+      }
+
+      #todo-list > .todo-container {
+        margin-bottom: 8px;
+      }
+
+      .todo-title {
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      .checkmark {
+        height: 16px;
+        width: 16px;
+      }
+
+      .todo-complete-btn {
+        padding: 4px;
+        border: none;
+        background: rgba(34, 197, 94, 0.75);
+        border-radius: 10%;
+        cursor: pointer;
+      }
+
+      .todo-complete-btn:hover {
+        background: rgba(34, 197, 94, 0.65);
+      }
+    </style>
+    <main>
+      <h1>PGlite Todo Demo</h1>
+      <span class="description"
+        >This is a minimal example of PGlite, a WASM build of Postgres that can
+        run right in your browser</span
+      >
+      <div id="form-container">
+        <form id="todo-form">
+          <input type="text" name="title" id="todo-input" />
+          <button type="submit">Submit</button>
+        </form>
+      </div>
+      <div id="todo-list"></div>
+    </main>
+  </body>
+  <script async defer type="module">
+    import { PGlite } from "https://cdn.jsdelivr.net/npm/@electric-sql/pglite/dist/index.js";
+    const db = new PGlite("idb://my-pgdata");
+
+    await createTable();
+    const res = await db.query("SELECT * FROM todos where completed = false;");
+    const todosContainer = document.querySelector("#todo-list");
+
+    const checkMarkSVG = new DOMParser().parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="checkmark">
+  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+</svg>`,
+      "application/xml"
+    ).documentElement;
+
+    for (const todo of res) {
+      createTodoElement(todo.title, todo.id);
+    }
+
+    async function createTable() {
+      await db.query(`CREATE TABLE IF NOT EXISTS todos (
+        id serial primary key,
+        title varchar not null,
+        completed boolean not null default false
+      )`);
+    }
+
+    async function addTodo(title) {
+      const res = await db.query(
+        `INSERT INTO todos (title) values ('${title}') returning id;`
+      );
+      const id = res[0].id;
+      createTodoElement(title, id);
+    }
+
+    async function completeListener(e) {
+      const todoContainerParent = e.target.closest(".todo-container");
+      await completeTodo(todoContainerParent.getAttribute("data-id"));
+    }
+
+    async function completeTodo(id) {
+      await db.query(`UPDATE todos set completed = true where id = ${id}`);
+      removeTodoElement(id);
+    }
+
+    function removeTodoElement(id) {
+      const toRemove = todosContainer.querySelector(
+        `.todo-container[data-id='${id}']`
+      );
+      todosContainer.removeChild(toRemove);
+    }
+
+    function createTodoElement(title, id) {
+      const container = document.createElement("div");
+      container.classList.add("todo-container");
+      container.setAttribute("data-id", id);
+
+      const titleEl = document.createElement("span");
+      titleEl.classList.add("todo-title");
+      titleEl.innerText = title;
+      container.appendChild(titleEl);
+
+      const completeButton = document.createElement("button");
+      completeButton.classList.add("todo-complete-btn");
+      completeButton.innerText;
+      completeButton.appendChild(
+        completeButton.ownerDocument.importNode(checkMarkSVG, true)
+      );
+      completeButton.addEventListener("click", completeListener);
+      container.appendChild(completeButton);
+
+      todosContainer.appendChild(container);
+    }
+
+    const form = document.querySelector("#todo-form");
+    const input = document.querySelector("#todo-input");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = new FormData(e.target);
+      const title = data.get("title");
+      await addTodo(title);
+    });
+  </script>
+</html>
