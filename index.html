@@ -109,6 +109,8 @@
     await createTable();
     const res = await db.query("SELECT * FROM todos where completed = false;");
     const todosContainer = document.querySelector("#todo-list");
+    const form = document.querySelector("#todo-form");
+    const input = document.querySelector("#todo-input");
 
     const checkMarkSVG = new DOMParser().parseFromString(
       `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="checkmark">
@@ -135,6 +137,7 @@
       );
       const id = res[0].id;
       createTodoElement(title, id);
+      input.value = "";
     }
 
     async function completeListener(e) {
@@ -176,8 +179,6 @@
       todosContainer.appendChild(container);
     }
 
-    const form = document.querySelector("#todo-form");
-    const input = document.querySelector("#todo-input");
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const data = new FormData(e.target);
